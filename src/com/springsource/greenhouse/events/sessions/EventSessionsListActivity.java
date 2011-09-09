@@ -58,10 +58,9 @@ public abstract class EventSessionsListActivity extends AbstractGreenhouseListAc
     //***************************************
 	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
-		super.onListItemClick(l, v, position, id);
 		EventSession session = getSession(position);
 		getApplicationContext().setSelectedSession(session);
-		startActivity(new Intent(v.getContext(), EventSessionDetailsActivity.class));
+		startActivity(new Intent(this, EventSessionDetailsActivity_.class));
 	}
 	
 	

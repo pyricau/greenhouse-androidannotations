@@ -6,60 +6,48 @@ import org.springframework.social.greenhouse.api.Event;
 import org.springframework.social.greenhouse.api.Tweet;
 import org.springframework.social.greenhouse.api.TweetFeed;
 
-import android.os.AsyncTask;
 import android.util.Log;
 
+import com.googlecode.androidannotations.annotations.App;
+import com.googlecode.androidannotations.annotations.Background;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.UiThread;
+import com.springsource.greenhouse.MainApplication;
 import com.springsource.greenhouse.twitter.TweetsListActivity;
 
+@EActivity
 public class EventTweetsActivity extends TweetsListActivity {
 	
 	private static final String TAG = EventTweetsActivity.class.getSimpleName();
 	
+	@App
+	MainApplication application;
 	
-	//***************************************
-    // TweetsListActivity methods
-    //***************************************
 	@Override
 	protected void downloadTweets() {
-		new DownloadTweetsTask().execute();
+	    showProgressDialog();
+	    downloadTweetsInBackground();
 	}
 	
+	@Background
+	void downloadTweetsInBackground() {
+        try {
+            Event event = getSelectedEvent();
+            if (event != null) {
+                TweetFeed feed = application.getGreenhouseApi().tweetOperations().getTweetsForEvent(event.getId());
+                downloadTweetsDone(feed.getTweets(), null);
+            }
+        } catch(Exception e) {
+            Log.e(TAG, e.getLocalizedMessage(), e);
+            downloadTweetsDone(null, e);
+        } 
+	}
 	
-	//***************************************
-    // Private classes
-    //***************************************
-	private class DownloadTweetsTask extends AsyncTask<Void, Void, List<Tweet>> {
-		
-		private Exception exception;
-				
-		@Override
-		protected void onPreExecute() {
-			showProgressDialog();
-		}
-		
-		@Override
-		protected List<Tweet> doInBackground(Void... params) {
-			try {
-				Event event = getSelectedEvent();
-				if (event == null) {
-					return null;
-				}
-				TweetFeed feed = getApplicationContext().getGreenhouseApi().tweetOperations().getTweetsForEvent(event.getId());
-				return feed.getTweets();
-			} catch(Exception e) {
-				Log.e(TAG, e.getLocalizedMessage(), e);
-				exception = e;
-			} 
-			
-			return null;
-		}
-		
-		@Override
-		protected void onPostExecute(List<Tweet> result) {
-			dismissProgressDialog();
-			processException(exception);
-			setTweets(result);
-		}
+	@UiThread
+	void downloadTweetsDone(List<Tweet> result, Exception exception) {
+        dismissProgressDialog();
+        processException(exception);
+        setTweets(result);
 	}
 
 }

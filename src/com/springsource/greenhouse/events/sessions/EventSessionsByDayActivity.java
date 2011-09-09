@@ -22,75 +22,70 @@ import java.util.List;
 import org.springframework.social.greenhouse.api.Event;
 import org.springframework.social.greenhouse.api.EventSession;
 
-import android.os.AsyncTask;
 import android.util.Log;
+
+import com.googlecode.androidannotations.annotations.App;
+import com.googlecode.androidannotations.annotations.Background;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.UiThread;
+import com.springsource.greenhouse.MainApplication;
 
 /**
  * @author Roy Clarkson
  */
+@EActivity
 public class EventSessionsByDayActivity extends EventSessionsListActivity {
 	
 	private static final String TAG = EventSessionsByDayActivity.class.getSimpleName();
 	
 	private Date day;
 	
+	@App
+	MainApplication application;
 	
 	//***************************************
 	// Activity methods
 	//***************************************
 	@Override
 	public void onStart() {
-		day = getApplicationContext().getSelectedDay();
+		day = application.getSelectedDay();
 		super.onStart();
 		if (day != null) {
 			String title = new SimpleDateFormat("EEEE, MMM d").format(day);
-			this.setTitle(title);
+			setTitle(title);
 		}
 	}
-
 	
 	//***************************************
     // Protected methods
     //***************************************
 	@Override
 	protected void downloadSessions() {
-		new DownloadSessionsTask().execute();
+	    showProgressDialog();
+	    downloadSessionsInBackground();
 	}
 	
-	
-	//***************************************
-    // Private classes
-    //***************************************
-	private class DownloadSessionsTask extends AsyncTask<Void, Void, List<EventSession>> {
-		
-		private Exception exception;
-				
-		@Override
-		protected void onPreExecute() {
-			showProgressDialog();
-		}
-		
-		@Override
-		protected List<EventSession> doInBackground(Void... params) {
-			try {
-				Event event = getSelectedEvent();
-				if (event == null || day == null) {
-					return null;
-				}
-				return getApplicationContext().getGreenhouseApi().sessionOperations().getSessionsOnDay(event.getId(), day);				
-			} catch(Exception e) {
-				Log.e(TAG, e.getLocalizedMessage(), e);
-				exception = e;
-			} 
-			
-			return null;
-		}
-		
-		@Override
-		protected void onPostExecute(List<EventSession> result) {
-			dismissProgressDialog();
-			processException(exception);
-			setSessions(result);
-		}
+	@Background
+	void downloadSessionsInBackground() {
+        try {
+            Event event = getSelectedEvent();
+            if (event == null || day == null) {
+                downloadSessionsDone(null, null);
+            } else {
+                List<EventSession> sessionsOnDay = application.getGreenhouseApi().sessionOperations().getSessionsOnDay(event.getId(), day);
+                downloadSessionsDone(sessionsOnDay, null);
+            }
+        } catch(Exception e) {
+            Log.e(TAG, e.getLocalizedMessage(), e);
+            downloadSessionsDone(null, e);
+        } 
 	}
+	
+	@UiThread
+    void downloadSessionsDone(List<EventSession> result, Exception exception) {
+        dismissProgressDialog();
+        processException(exception);
+        setSessions(result);
+    }
+	
 }

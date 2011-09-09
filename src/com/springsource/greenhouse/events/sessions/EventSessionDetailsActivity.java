@@ -19,23 +19,28 @@ import org.springframework.social.greenhouse.api.Event;
 import org.springframework.social.greenhouse.api.EventSession;
 
 import android.content.Intent;
-import android.os.AsyncTask;
-import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.googlecode.androidannotations.annotations.AfterViews;
+import com.googlecode.androidannotations.annotations.App;
+import com.googlecode.androidannotations.annotations.Background;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.ItemClick;
+import com.googlecode.androidannotations.annotations.UiThread;
+import com.googlecode.androidannotations.annotations.ViewById;
+import com.googlecode.androidannotations.annotations.res.StringArrayRes;
 import com.springsource.greenhouse.AbstractGreenhouseActivity;
+import com.springsource.greenhouse.MainApplication;
 import com.springsource.greenhouse.R;
-import com.springsource.greenhouse.twitter.PostTweetActivity;
+import com.springsource.greenhouse.twitter.PostTweetActivity_;
 
 /**
  * @author Roy Clarkson
  */
+@EActivity(R.layout.event_session_details)
 public class EventSessionDetailsActivity extends AbstractGreenhouseActivity {
 	
 	private static final String TAG = EventSessionDetailsActivity.class.getSimpleName();
@@ -44,48 +49,54 @@ public class EventSessionDetailsActivity extends AbstractGreenhouseActivity {
 	
 	private EventSession session;
 	
+	@ViewById(R.id.event_session_details_menu)
+	ListView listView;
 	
+	@StringArrayRes(R.array.event_session_details_options_array)
+	String[] menu_items;
+
+    private ArrayAdapter<String> arrayAdapter;
+    
+    @App
+    MainApplication application;
+	
+    @AfterViews
+    void initListView() {
+        arrayAdapter = new ArrayAdapter<String>(this, R.layout.menu_list_item, menu_items);
+        listView.setAdapter(arrayAdapter);
+    }
+    
+    @ItemClick(R.id.event_session_details_menu)
+    void listItemClicked(String selectedItem) {
+        int position = arrayAdapter.getPosition(selectedItem);
+        switch(position) {
+        case 0:
+            showProgressDialog("Updating favorite ...");
+            updateFavorite();
+            break;
+        case 1:
+            startActivity(new Intent(this, EventSessionRatingActivity.class));
+            break;
+        case 2:
+            startActivity(new Intent(this, PostTweetActivity_.class));
+            break;
+        case 3:
+            startActivity(new Intent(this, EventSessionTweetsActivity.class));
+            break;
+        default:
+            break;
+    }
+    }
+    
 	//***************************************
 	// Activity methods
 	//***************************************
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.event_session_details);
-		
-		final ListView listView = (ListView) findViewById(R.id.event_session_details_menu);
-		
-		String[] menu_items = getResources().getStringArray(R.array.event_session_details_options_array);
-		ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(this, R.layout.menu_list_item, menu_items);
-		listView.setAdapter(arrayAdapter);
-		
-		listView.setOnItemClickListener(new OnItemClickListener() {
-		    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-		    	switch(position) {
-			      	case 0:
-			      		new UpdateFavoriteTask().execute();
-			      		break;
-			      	case 1:
-			      		startActivity(new Intent(view.getContext(), EventSessionRatingActivity.class));
-			      		break;
-			      	case 2:
-			      		startActivity(new Intent(view.getContext(), PostTweetActivity.class));
-			      		break;
-			      	case 3:
-			      		startActivity(new Intent(view.getContext(), EventSessionTweetsActivity.class));
-			      		break;
-			      	default:
-			      		break;
-		    	}
-		    }
-		});
-	}
-	
-	@Override
+
+    @Override
 	public void onStart() {
 		super.onStart();
-		event = getApplicationContext().getSelectedEvent();
-		session = getApplicationContext().getSelectedSession();		
+		event = application.getSelectedEvent();
+		session = application.getSelectedSession();		
 		refreshEventDetails(); 
 	}
 	
@@ -120,45 +131,32 @@ public class EventSessionDetailsActivity extends AbstractGreenhouseActivity {
 		setFavoriteStatus(session.isFavorite());
 	}
 	
-	private void setFavoriteStatus(Boolean status) {
+	private void setFavoriteStatus(boolean status) {
 		final TextView textViewSessionFavorite = (TextView) findViewById(R.id.event_session_details_favorite);
 		String text = status ? "Favorite: \u2713" : "Not a Favorite";
 		textViewSessionFavorite.setText(text);
 	}
 	
-	
-	//***************************************
-    // Private classes
-    //***************************************
-	private class UpdateFavoriteTask extends AsyncTask<Void, Void, Boolean> {
-		
-		private Exception exception;
-		
-		@Override
-		protected void onPreExecute() {
-			showProgressDialog("Updating favorite ..."); 
-		}
-		
-		@Override
-		protected Boolean doInBackground(Void... params) {
-			try {
-				if (event == null || session == null) {
-					return false;
-				}
-				return getApplicationContext().getGreenhouseApi().sessionOperations().updateFavoriteSession(event.getId(), session.getId());
-			} catch(Exception e) {
-				Log.e(TAG, e.getLocalizedMessage(), e);
-				exception = e;
-			} 
-			
-			return false;
-		}
-		
-		@Override
-		protected void onPostExecute(Boolean result) {
-			dismissProgressDialog();
-			processException(exception);
-			setFavoriteStatus(result);
-		}
+	@Background
+	void updateFavorite() {
+        try {
+            if (event == null || session == null) {
+                updateFavoriteDone(false, null);
+            } else {
+               boolean status = application.getGreenhouseApi().sessionOperations().updateFavoriteSession(event.getId(), session.getId());
+               updateFavoriteDone(status, null);
+            }
+        } catch(Exception e) {
+            Log.e(TAG, e.getLocalizedMessage(), e);
+            updateFavoriteDone(false, e);
+        } 
 	}
+	
+	@UiThread
+	void updateFavoriteDone(boolean result, Exception exception) {
+	       dismissProgressDialog();
+           processException(exception);
+           setFavoriteStatus(result);
+	}
+	
 }

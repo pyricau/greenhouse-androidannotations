@@ -18,32 +18,28 @@ package com.springsource.greenhouse;
 import android.content.ComponentName;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.NameNotFoundException;
-import android.os.Bundle;
 import android.widget.TextView;
 
-import com.springsource.greenhouse.R;
+import com.googlecode.androidannotations.annotations.AfterViews;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.ViewById;
 
 /**
  * @author Roy Clarkson
  */
+@EActivity(R.layout.info)
 public class InfoActivity extends AbstractGreenhouseActivity {
 	
-	//***************************************
-    // Activity methods
-    //***************************************
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.info);
-		
-		final TextView textViewInfoVersion = (TextView) findViewById(R.id.info_textview_version);
-	
-		try {
-			ComponentName componentName = new ComponentName(this, AbstractGreenhouseActivity.class);
-			String packageName = componentName.getPackageName();
-			PackageInfo packageInfo = getPackageManager().getPackageInfo(packageName, 0);
-			textViewInfoVersion.setText("Version " + packageInfo.versionName);
-		} catch (NameNotFoundException e) { }
-		
+    @ViewById(R.id.info_textview_version)
+    TextView textViewInfoVersion;
+    
+	@AfterViews
+	void updateTextView() {
+        try {
+            ComponentName componentName = new ComponentName(this, AbstractGreenhouseActivity.class);
+            String packageName = componentName.getPackageName();
+            PackageInfo packageInfo = getPackageManager().getPackageInfo(packageName, 0);
+            textViewInfoVersion.setText("Version " + packageInfo.versionName);
+        } catch (NameNotFoundException e) { }
 	}
 }

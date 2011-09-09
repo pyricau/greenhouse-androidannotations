@@ -81,10 +81,9 @@ public abstract class TweetsListActivity extends AbstractGreenhouseListActivity 
     //***************************************
 	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
-		super.onListItemClick(l, v, position, id);
 		Tweet tweet = getTweet(position);
 		getApplicationContext().setSelectedTweet(tweet);
-		startActivity(new Intent(v.getContext(), TweetDetailsActivity.class));
+		startActivity(new Intent(this, TweetDetailsActivity_.class));
 	}
 	
 	

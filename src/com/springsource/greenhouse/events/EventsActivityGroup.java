@@ -46,8 +46,7 @@ public class EventsActivityGroup extends ActivityGroup {
 		group = this;  
    
 		// Start the root activity within the group and get its view
-		Intent intent = new Intent();
-		intent.setClass(this, EventsActivity.class);
+		Intent intent = new Intent(this, EventsActivity_.class);
 		intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 		
 		LocalActivityManager activityManager = getLocalActivityManager();

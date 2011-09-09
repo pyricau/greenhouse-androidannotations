@@ -27,7 +27,6 @@ import org.springframework.social.oauth1.OAuthToken;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -39,21 +38,25 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import com.googlecode.androidannotations.annotations.AfterViews;
+import com.googlecode.androidannotations.annotations.App;
 import com.googlecode.androidannotations.annotations.Background;
 import com.googlecode.androidannotations.annotations.EActivity;
 import com.googlecode.androidannotations.annotations.UiThread;
+import com.googlecode.androidannotations.annotations.ViewById;
 import com.googlecode.androidannotations.annotations.res.StringRes;
 import com.googlecode.androidannotations.annotations.sharedpreferences.Pref;
 
 /**
  * @author Roy Clarkson
  */
-@EActivity
+@EActivity(R.layout.web_oauth)
 public class WebOAuthActivity extends AbstractGreenhouseActivity {
 	
 	protected static final String TAG = WebOAuthActivity.class.getSimpleName();
 	
-	private WebView webView;
+	@ViewById
+	WebView webView;
 	
 	private ConnectionRepository connectionRepository;
 	
@@ -64,43 +67,41 @@ public class WebOAuthActivity extends AbstractGreenhouseActivity {
 	
 	@Pref
 	GreenhouseConnectPreferences_ prefs;
-
+	
+	@App
+	MainApplication application;
 
 	//***************************************
     // Activity methods
     //***************************************
-	@Override
-	public void onCreate(Bundle savedInstanceState) {		
-		super.onCreate(savedInstanceState);
-		
+	protected void onCreate(Bundle savedInstanceState) {
+	    super.onCreate(savedInstanceState);
+	    
 		getWindow().requestFeature(Window.FEATURE_PROGRESS);
 		getWindow().setFeatureInt(Window.FEATURE_PROGRESS, Window.PROGRESS_VISIBILITY_ON);
 		
-		webView = new WebView(this);		
-		setContentView(webView);
-		
-		webView.setWebViewClient(new OAuthWebViewClient());
-		webView.getSettings().setSaveFormData(false);
-		webView.getSettings().setSavePassword(false);
-		
-		final Activity activity = this;
-		
-		webView.setWebChromeClient(
-				new WebChromeClient() {
-		            public void onProgressChanged(WebView view, int progress) {
-		            	activity.setTitle("Loading...");
-		            	activity.setProgress(progress * 100);
-		            	
-		            	if (progress == 100) {
-		            		activity.setTitle(R.string.app_name);
-		            	}
-		            }
-				}
-		);
-		
-		
-		connectionRepository = getApplicationContext().getConnectionRepository();
-		connectionFactory = getApplicationContext().getConnectionFactory();
+		connectionRepository = application.getConnectionRepository();
+		connectionFactory = application.getConnectionFactory();
+	}
+	
+	@AfterViews
+	void initWebView() {
+        webView.setWebViewClient(new OAuthWebViewClient());
+        webView.getSettings().setSaveFormData(false);
+        webView.getSettings().setSavePassword(false);
+        
+        webView.setWebChromeClient(
+                new WebChromeClient() {
+                    public void onProgressChanged(WebView view, int progress) {
+                        setTitle("Loading...");
+                        setProgress(progress * 100);
+                        
+                        if (progress == 100) {
+                            setTitle(R.string.app_name);
+                        }
+                    }
+                }
+        );
 	}
 	
 	@Override
@@ -130,14 +131,12 @@ public class WebOAuthActivity extends AbstractGreenhouseActivity {
 	}
 	
 	private void displayGreenhouseOptions() {
-		Intent intent = new Intent();
-		intent.setClass(this, MainActivity.class);
+		Intent intent = new Intent(this, MainActivity.class);
 	    startActivity(intent);
     	finish();
 	}
 	
 	private void saveRequestToken(OAuthToken requestToken) {
-		
 		prefs.edit() //
 				.request_token().put(requestToken.getValue()) //
 				.request_token_secret().put(requestToken.getSecret()) //
@@ -170,11 +169,11 @@ public class WebOAuthActivity extends AbstractGreenhouseActivity {
 	
 	void greenhousePreConnect() {
 		showProgressDialog("Initializing OAuth Connection...");
-		greenhouseFetchRequestToken();
+		greenhouseRemotePreConnect();
 	}
 	
 	@Background
-	void greenhouseFetchRequestToken() {
+	void greenhouseRemotePreConnect() {
 		try {
 			// Fetch a one time use Request Token from Greenhouse
 			OAuthToken token = connectionFactory.getOAuthOperations().fetchRequestToken(oauth_callback_url, null);
@@ -218,6 +217,7 @@ public class WebOAuthActivity extends AbstractGreenhouseActivity {
 			accessToken = connectionFactory.getOAuthOperations().exchangeForAccessToken(authorizedRequestToken, null);
 		} catch(Exception e) {
 			greenhousePostConnectFailed(e);
+			return;
 		}
 		
 		deleteRequestToken();

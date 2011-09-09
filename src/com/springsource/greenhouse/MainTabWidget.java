@@ -23,8 +23,8 @@ import android.widget.TabHost;
 import com.googlecode.androidannotations.annotations.AfterViews;
 import com.googlecode.androidannotations.annotations.EActivity;
 import com.googlecode.androidannotations.annotations.res.DrawableRes;
-import com.springsource.greenhouse.events.EventsActivity;
-import com.springsource.greenhouse.profile.ProfileActivity;
+import com.springsource.greenhouse.events.EventsActivity_;
+import com.springsource.greenhouse.profile.ProfileActivity_;
 
 /**
  * @author Roy Clarkson
@@ -48,8 +48,7 @@ public class MainTabWidget extends TabActivity {
 		Intent intent;
 				
 		// add events tab
-		intent = new Intent();
-		intent.setClass(this, EventsActivity.class);
+		intent = new Intent(this, EventsActivity_.class);
 		
 		tabSpec = tabHost.newTabSpec("events");
 		tabSpec.setIndicator("Events", ic_tab_events);
@@ -57,8 +56,7 @@ public class MainTabWidget extends TabActivity {
 		tabHost.addTab(tabSpec);
 		
 		// add profile tab
-		intent = new Intent();
-		intent.setClass(this, ProfileActivity.class);
+		intent = new Intent(this, ProfileActivity_.class);
 		
 		tabSpec = tabHost.newTabSpec("profile");
 		tabSpec.setIndicator("Profile", ic_tab_profile);
@@ -66,8 +64,7 @@ public class MainTabWidget extends TabActivity {
 		tabHost.addTab(tabSpec);
 		
 		// add info tab
-		intent = new Intent();
-		intent.setClass(this, InfoActivity.class);
+		intent = new Intent(this, InfoActivity_.class);
 		
 		tabSpec = tabHost.newTabSpec("info");
 		tabSpec.setIndicator("Info", ic_tab_info);

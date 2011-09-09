@@ -44,10 +44,10 @@
 			android:name="com.springsource.greenhouse.events.EventsActivityGroup"  />
 			
 		<activity 
-			android:name="com.springsource.greenhouse.events.EventsActivity" />
+			android:name="com.springsource.greenhouse.events.EventsActivity_" />
 			
 		<activity 
-			android:name="com.springsource.greenhouse.events.EventDetailsActivity" 
+			android:name="com.springsource.greenhouse.events.EventDetailsActivity_" 
 			android:label="@string/title_event_details" />
 		
 		<activity 
@@ -55,7 +55,7 @@
 			android:label="@string/title_event_description" />
 			
 		<activity 
-			android:name="com.springsource.greenhouse.events.EventTweetsActivity"
+			android:name="com.springsource.greenhouse.events.EventTweetsActivity_"
 			android:label="@string/title_event_tweets" />
 			
 		<activity 
@@ -63,7 +63,7 @@
 			android:label="@string/title_event_sessions_filtered" />
 			
 		<activity 
-			android:name="com.springsource.greenhouse.events.sessions.EventSessionsScheduleActivity"
+			android:name="com.springsource.greenhouse.events.sessions.EventSessionsScheduleActivity_"
 			android:label="@string/title_event_sessions_schedule" />
 			
 		<activity 
@@ -83,11 +83,11 @@
 			android:label="@string/title_event_sessions_conference_favorites" />
 
 		<activity
-			android:name="com.springsource.greenhouse.events.sessions.EventSessionsByDayActivity"
+			android:name="com.springsource.greenhouse.events.sessions.EventSessionsByDayActivity_"
 			android:label="@string/title_event_sessions_by_day" />
 
 		<activity
-			android:name="com.springsource.greenhouse.events.sessions.EventSessionDetailsActivity"
+			android:name="com.springsource.greenhouse.events.sessions.EventSessionDetailsActivity_"
 			android:label="@string/title_event_session_details" />
 			
 		<activity 
@@ -103,18 +103,18 @@
 			android:label="@string/title_event_session_tweets" />
 			
 		<activity 
-			android:name="com.springsource.greenhouse.twitter.TweetDetailsActivity" 
+			android:name="com.springsource.greenhouse.twitter.TweetDetailsActivity_" 
 			android:label="@string/title_tweet_details" />
 			
 		<activity 
-			android:name="com.springsource.greenhouse.twitter.PostTweetActivity" 
+			android:name="com.springsource.greenhouse.twitter.PostTweetActivity_" 
 			android:label="@string/title_post_tweet" />
 				
 		<activity 
-			android:name="com.springsource.greenhouse.profile.ProfileActivity" />
+			android:name="com.springsource.greenhouse.profile.ProfileActivity_" />
 			
 		<activity 
-			android:name="com.springsource.greenhouse.InfoActivity" />
+			android:name="com.springsource.greenhouse.InfoActivity_" />
 	
 	</application>
     

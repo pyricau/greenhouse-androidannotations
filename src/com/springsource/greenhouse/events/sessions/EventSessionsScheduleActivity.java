@@ -23,17 +23,19 @@ import java.util.List;
 import org.springframework.social.greenhouse.api.Event;
 
 import android.content.Intent;
-import android.os.Bundle;
-import android.view.View;
 import android.widget.ArrayAdapter;
-import android.widget.ListView;
 
+import com.googlecode.androidannotations.annotations.App;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.ItemClick;
 import com.springsource.greenhouse.AbstractGreenhouseListActivity;
+import com.springsource.greenhouse.MainApplication;
 import com.springsource.greenhouse.R;
 
 /**
  * @author Roy Clarkson
  */
+@EActivity
 public class EventSessionsScheduleActivity extends AbstractGreenhouseListActivity {
 	
 	@SuppressWarnings("unused")
@@ -43,32 +45,30 @@ public class EventSessionsScheduleActivity extends AbstractGreenhouseListActivit
 	
 	private List<Date> conferenceDates;
 	
+	@App
+	MainApplication application;
+
+    private ArrayAdapter<String> adapter;
+	
 
 	//***************************************
 	// Activity methods
 	//***************************************
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-	}
 	
 	@Override
 	public void onStart() {
 		super.onStart();
-		event = getApplicationContext().getSelectedEvent();
-		getApplicationContext().setSelectedDay(null);
+		event = application.getSelectedEvent();
+		application.setSelectedDay(null);
 		refreshScheduleDays();
 	}
 	
-	//***************************************
-    // ListActivity methods
-    //***************************************
-	@Override
-	protected void  onListItemClick(ListView l, View v, int position, long id) {
-		super.onListItemClick(l, v, position, id);
-		Date day = conferenceDates.get(position);
-		getApplicationContext().setSelectedDay(day);		
-		startActivity(new Intent(v.getContext(), EventSessionsByDayActivity.class));
+	@ItemClick
+	void listItemClicked(String dayString) {
+	    int position = adapter.getPosition(dayString);
+	    Date day = conferenceDates.get(position);
+        application.setSelectedDay(day);
+        startActivity(new Intent(this, EventSessionsByDayActivity_.class));
 	}
 	
 	//***************************************
@@ -86,9 +86,11 @@ public class EventSessionsScheduleActivity extends AbstractGreenhouseListActivit
 		while (day.before(event.getEndTime())) {
 			conferenceDates.add((Date) day.clone());
 			conferenceDays.add(new SimpleDateFormat("EEEE, MMM d").format(day));
+			// Common Roy, that's dirty ;-) !
 			day.setDate(day.getDate() + 1);
 		}
 		
-		setListAdapter(new ArrayAdapter<String>(this, R.layout.menu_list_item, conferenceDays));
+		adapter = new ArrayAdapter<String>(this, R.layout.menu_list_item, conferenceDays);
+        setListAdapter(adapter);
 	}
 }

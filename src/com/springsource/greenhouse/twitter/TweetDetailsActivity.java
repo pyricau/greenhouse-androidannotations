@@ -26,22 +26,27 @@ import org.springframework.web.client.HttpClientErrorException;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.os.AsyncTask;
-import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
-import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.googlecode.androidannotations.annotations.AfterViews;
+import com.googlecode.androidannotations.annotations.App;
+import com.googlecode.androidannotations.annotations.Background;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.ItemClick;
+import com.googlecode.androidannotations.annotations.UiThread;
+import com.googlecode.androidannotations.annotations.ViewById;
+import com.googlecode.androidannotations.annotations.res.StringArrayRes;
 import com.springsource.greenhouse.AbstractGreenhouseActivity;
+import com.springsource.greenhouse.MainApplication;
 import com.springsource.greenhouse.R;
 
 /**
  * @author Roy Clarkson
  */
+@EActivity(R.layout.tweet_details)
 public class TweetDetailsActivity extends AbstractGreenhouseActivity {
 	
 	protected static final String TAG = TweetDetailsActivity.class.getSimpleName();
@@ -52,54 +57,63 @@ public class TweetDetailsActivity extends AbstractGreenhouseActivity {
 	
 	private Tweet tweet;
 	
+	@ViewById(R.id.tweet_details_menu)
+	ListView listView;
 	
-	//***************************************
-	// Activity methods
-	//***************************************
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		this.setContentView(R.layout.tweet_details);
-		
-		final ListView listView = (ListView) findViewById(R.id.tweet_details_menu);
-		
-		String[] menu_items = getResources().getStringArray(R.array.tweet_details_options_array);
-		ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(this, R.layout.menu_list_item, menu_items);
+	@StringArrayRes(R.array.tweet_details_options_array)
+	String[] menu_items;
+	
+	@App
+	MainApplication application;
+
+    private ArrayAdapter<String> arrayAdapter;
+    
+    @ViewById(R.id.tweet_details_fromuser)
+    TextView fromUserTextView;
+    
+    @ViewById(R.id.tweet_details_time)
+    TextView timeTextView;
+    
+    @ViewById(R.id.tweet_details_text)
+    TextView textTextView;
+    
+	@AfterViews
+	public void initListView() {
+		arrayAdapter = new ArrayAdapter<String>(this, R.layout.menu_list_item, menu_items);
 		listView.setAdapter(arrayAdapter);
-		
-		listView.setOnItemClickListener(new OnItemClickListener() {
-		    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-		    	switch(position) {
-			      	case 0:
-			      		Intent replyIntent = new Intent(view.getContext(), PostTweetActivity.class);
-			      		replyIntent.putExtra("reply", tweet.getFromUser());
-			      		startActivity(replyIntent);
-			      		break;
-			      	case 1:
-			      		showRetweetDialog();
-			      		break;
-			      	case 2:
-			      		Intent quoteIntent = new Intent(view.getContext(), PostTweetActivity.class);
-			      		String quote = new StringBuilder().append("\"@").append(tweet.getFromUser()).append(" ").append(tweet.getText()).append("\"").toString();
-			      		quoteIntent.putExtra("quote", quote);
-			      		startActivity(quoteIntent);
-			      		break;
-			      	default:
-			      		break;
-		    	}
-		    }
-		});
 	}
 	
 	@Override
-	public void onStart() {
-		super.onStart();
-		event = getApplicationContext().getSelectedEvent();
-		session = getApplicationContext().getSelectedSession();
-		tweet = getApplicationContext().getSelectedTweet();
-		refreshTweetDetails();
-	}
+    public void onStart() {
+        super.onStart();
+        event = application.getSelectedEvent();
+        session = application.getSelectedSession();
+        tweet = application.getSelectedTweet();
+        refreshTweetDetails();
+    }
 	
+    @ItemClick(R.id.tweet_details_menu)
+    void listItemClicked(String selectedItem) {
+        int position = arrayAdapter.getPosition(selectedItem);
+        switch(position) {
+            case 0:
+                Intent replyIntent = new Intent(this, PostTweetActivity_.class);
+                replyIntent.putExtra("reply", tweet.getFromUser());
+                startActivity(replyIntent);
+                break;
+            case 1:
+                showRetweetDialog();
+                break;
+            case 2:
+                Intent quoteIntent = new Intent(this, PostTweetActivity_.class);
+                String quote = new StringBuilder().append("\"@").append(tweet.getFromUser()).append(" ").append(tweet.getText()).append("\"").toString();
+                quoteIntent.putExtra("quote", quote);
+                startActivity(quoteIntent);
+                break;
+        }
+    }
+	
+
 	
 	//***************************************
 	// Private methods
@@ -109,93 +123,74 @@ public class TweetDetailsActivity extends AbstractGreenhouseActivity {
 			return;
 		}
 		
-		TextView t = (TextView) findViewById(R.id.tweet_details_fromuser);
-		t.setText(tweet.getFromUser());
-		
-		t = (TextView) findViewById(R.id.tweet_details_time);
-		t.setText(new SimpleDateFormat("MMM d h:mm a").format(tweet.getCreatedAt()));
-		
-		t = (TextView) findViewById(R.id.tweet_details_text);
-		t.setText(tweet.getText());		
+		fromUserTextView.setText(tweet.getFromUser());
+		timeTextView.setText(new SimpleDateFormat("MMM d h:mm a").format(tweet.getCreatedAt()));
+		textTextView.setText(tweet.getText());		
 	}
 	
 	private void showRetweetDialog() {
-		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		builder.setMessage("Are you sure you want to Retweet?")
-		       .setCancelable(false)
+		new AlertDialog.Builder(this) //
+		       .setMessage("Are you sure you want to Retweet?") //
+		       .setCancelable(false) //
 		       .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
 		    	   public void onClick(DialogInterface dialog, int id) {
 		        	   retweet();
 		           }
-		       })
+		       }) //
 		       .setNegativeButton("No", new DialogInterface.OnClickListener() {
 		           public void onClick(DialogInterface dialog, int id) {
 		        	   dialog.cancel();
 		           }
-		       });
-		AlertDialog alert = builder.create();
-		alert.show();
+		       }) //
+		       .create() //
+		       .show();
 	}
 	
 	private void retweet() {
-		new RetweetTask().execute();
+	    showProgressDialog("Retweeting...");
+	    retweetInBackground();
+	}
+	
+	@Background
+	void retweetInBackground() {
+        try {
+            if (session != null) {
+                application.getGreenhouseApi().tweetOperations().retweetForEventSession(event.getId(), session.getId(), tweet.getId());
+            } else {
+                application.getGreenhouseApi().tweetOperations().retweetForEvent(event.getId(), tweet.getId());
+            }
+            retweetDone("Thank you for tweeting about this event!", null);
+        } catch(HttpClientErrorException e) {
+            if (e.getStatusCode() == HttpStatus.PRECONDITION_FAILED) {
+                retweetDone("Your account is not connected to Twitter. Please sign in to greenhouse.springsource.org to connect.", e);
+            } else {
+                Log.e(TAG, e.getLocalizedMessage(), e);
+                retweetDone("A problem occurred while posting to Twitter. Please verify your account is connected at greenhouse.springsource.org.", e);
+            }
+        } catch(Exception e) {
+            Log.e(TAG, e.getLocalizedMessage(), e);
+            retweetDone("A problem occurred while posting to Twitter. Please verify your account is connected at greenhouse.springsource.org.", e);
+        }
+	}
+	
+	@UiThread
+	void retweetDone(String result, Exception exception) {
+        dismissProgressDialog();
+        processException(exception);
+        showResult(result);
 	}
 	
 	private void showResult(String result) {
-//		Toast.makeText(this, result, Toast.LENGTH_LONG).show();
-		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		builder.setMessage(result);
-		builder.setCancelable(false);
-		builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-			public void onClick(DialogInterface dialog, int id) {
-		     	dialog.cancel();
-			}
-		});
-		AlertDialog alert = builder.create();
-		alert.show();
+        new AlertDialog.Builder(this) //
+                .setMessage(result) //
+                .setCancelable(false) //
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+        			public void onClick(DialogInterface dialog, int id) {
+        		     	dialog.cancel();
+        			}
+        		}) //
+        		.create() //
+        		.show();
 	}
 		
-	
-	//***************************************
-    // Private classes
-    //***************************************
-	private class RetweetTask extends AsyncTask<Void, Void, String> {
-		
-		private Exception exception;
-		
-		@Override
-		protected void onPreExecute() {
-			showProgressDialog("Retweeting..."); 
-		}
-		
-		@Override
-		protected String doInBackground(Void... params) {
-			try {
-				if (session != null) {
-					getApplicationContext().getGreenhouseApi().tweetOperations().retweetForEventSession(event.getId(), session.getId(), tweet.getId());
-				} else {
-					getApplicationContext().getGreenhouseApi().tweetOperations().retweetForEvent(event.getId(), tweet.getId());
-				}
-				return "Thank you for tweeting about this event!";
-			} catch(HttpClientErrorException e) {
-				if (e.getStatusCode() == HttpStatus.PRECONDITION_FAILED) {
-					return "Your account is not connected to Twitter. Please sign in to greenhouse.springsource.org to connect.";
-				} else {
-					Log.e(TAG, e.getLocalizedMessage(), e);
-					return "A problem occurred while posting to Twitter. Please verify your account is connected at greenhouse.springsource.org.";
-				}
-			} catch(Exception e) {
-				Log.e(TAG, e.getLocalizedMessage(), e);
-				return "A problem occurred while posting to Twitter. Please verify your account is connected at greenhouse.springsource.org.";
-			}
-		}
-		
-		@Override
-		protected void onPostExecute(String result) {
-			dismissProgressDialog();
-			processException(exception);
-			showResult(result);
-		}
-	}
-
 }

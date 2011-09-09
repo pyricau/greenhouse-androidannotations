@@ -20,36 +20,37 @@ import java.util.List;
 import org.springframework.social.greenhouse.api.Event;
 
 import android.content.Intent;
-import android.os.AsyncTask;
-import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.ListView;
 
+import com.googlecode.androidannotations.annotations.App;
+import com.googlecode.androidannotations.annotations.Background;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.ItemClick;
+import com.googlecode.androidannotations.annotations.UiThread;
 import com.springsource.greenhouse.AbstractGreenhouseListActivity;
+import com.springsource.greenhouse.MainApplication;
 import com.springsource.greenhouse.R;
 
 /**
  * @author Roy Clarkson
  */
+@EActivity
 public class EventsActivity extends AbstractGreenhouseListActivity {
 	
 	protected static final String TAG = EventsActivity.class.getSimpleName();
 	
 	private List<Event> upcomingEvents;
 	
+	@App
+	MainApplication application;
 	
 	//***************************************
     // Activity methods
     //***************************************
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-	}
-	
+
 	@Override
 	public void onStart() {
 		super.onStart();
@@ -79,18 +80,11 @@ public class EventsActivity extends AbstractGreenhouseListActivity {
 	}
 
 	
-	//***************************************
-    // ListActivity methods
-    //***************************************
-	@Override
-	protected void onListItemClick(ListView l, View v, int position, long id) {
-		super.onListItemClick(l, v, position, id);
-		
-		Event event = upcomingEvents.get(position);
-		getApplicationContext().setSelectedEvent(event);		
-		startActivity(new Intent(this, EventDetailsActivity.class));
-	}
-	
+    @ItemClick
+    void listItemClicked(Event event) {
+        application.setSelectedEvent(event);
+        startActivity(new Intent(this, EventDetailsActivity_.class));
+    }
 	
 	//***************************************
     // Private methods
@@ -106,39 +100,27 @@ public class EventsActivity extends AbstractGreenhouseListActivity {
 	}
 		
 	private void downloadEvents() {
-		new DownloadEventsTask().execute();
+	    showProgressDialog();
+	    downloadEventsInBackground();
+	}
+	
+	@Background
+	void downloadEventsInBackground() {
+        try {
+            List<Event> downloadedEvents = application.getGreenhouseApi().eventOperations().getUpcomingEvents();
+            downloadEventsDone(downloadedEvents, null);
+        } catch(Exception e) {
+            Log.e(TAG, e.getLocalizedMessage(), e);
+            downloadEventsDone(null, e);
+        }
+	}
+	
+	@UiThread
+	void downloadEventsDone(List<Event> result, Exception exception) {
+        dismissProgressDialog();
+        processException(exception);
+        refreshEvents(result);
 	}
 	
 	
-	//***************************************
-    // Private classes
-    //***************************************
-	private class DownloadEventsTask extends AsyncTask<Void, Void, List<Event>> {
-		
-		private Exception exception;
-		
-		@Override
-		protected void onPreExecute() {
-			showProgressDialog(); 
-		}
-		
-		@Override
-		protected List<Event> doInBackground(Void... params) {
-			try {
-				return getApplicationContext().getGreenhouseApi().eventOperations().getUpcomingEvents();
-			} catch(Exception e) {
-				Log.e(TAG, e.getLocalizedMessage(), e);
-				exception = e;
-			}
-			
-			return null;
-		}
-		
-		@Override
-		protected void onPostExecute(List<Event> result) {
-			dismissProgressDialog();
-			processException(exception);
-			refreshEvents(result);
-		}
-	}
 }

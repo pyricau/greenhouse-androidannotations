@@ -23,90 +23,127 @@ import org.springframework.web.client.HttpClientErrorException;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.os.AsyncTask;
-import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.util.Log;
-import android.view.View;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import com.googlecode.androidannotations.annotations.AfterViews;
+import com.googlecode.androidannotations.annotations.App;
+import com.googlecode.androidannotations.annotations.Background;
+import com.googlecode.androidannotations.annotations.Click;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.Extra;
+import com.googlecode.androidannotations.annotations.UiThread;
+import com.googlecode.androidannotations.annotations.ViewById;
 import com.springsource.greenhouse.AbstractGreenhouseActivity;
+import com.springsource.greenhouse.AbstractTextWatcher;
+import com.springsource.greenhouse.MainApplication;
 import com.springsource.greenhouse.R;
 
 /**
  * @author Roy Clarkson
  */
+@EActivity(R.layout.post_tweet)
 public class PostTweetActivity extends AbstractGreenhouseActivity {
 
 	protected static final String TAG = PostTweetActivity.class.getSimpleName();
 	
 	private static final int MAX_TWEET_LENGTH = 140;
 	
-	private TextWatcher textWatcher;
 	
-	private TextView textViewCount;
+	@ViewById(R.id.post_tweet_count)
+	TextView textViewCount;
+	
+	@ViewById(R.id.post_tweet_text)
+	EditText editText;
 
 	private Event event;
 	
 	private EventSession session;
 	
+	@Extra("reply")
+	String replyExtra;
+	
+	@Extra("quote")
+    String quoteExtra;
+	
+	@App
+	MainApplication application;
+	
+	@AfterViews
+	void watchEditText() {
+        editText.addTextChangedListener(new AbstractTextWatcher() {
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                textViewCount.setText(String.valueOf(MAX_TWEET_LENGTH - s.length()));
+             }
+        });
+	}
+	
+	@Click
+    void post_tweet_button() {
+        // hide the soft keypad
+        InputMethodManager inputMethodManager = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
+        inputMethodManager.hideSoftInputFromWindow(editText.getWindowToken(), 0);
+        
+        showProgressDialog("Posting Tweet...");
+        String status = editText.getText().toString();
+        postTweet(status);
+    }
+	
+	@Background
+	void postTweet(String status) {
+	    String message;
+        try {
+            if (session != null) {
+                application.getGreenhouseApi().tweetOperations().postTweetForEventSession(event.getId(), session.getId(), status);
+                message = "Thank you for tweeting about this session!";
+            } else {
+                application.getGreenhouseApi().tweetOperations().postTweetForEvent(event.getId(), status);
+                message = "Thank you for tweeting about this event!";
+            }
+        } catch(HttpClientErrorException e) {
+            if (e.getStatusCode() == HttpStatus.PRECONDITION_FAILED) {
+                message = "Your account is not connected to Twitter. Please sign in to greenhouse.springsource.org to connect.";
+            } else {
+                Log.e(TAG, e.getLocalizedMessage(), e);
+                message = "A problem occurred while posting to Twitter. Please verify your account is connected at greenhouse.springsource.org.";
+            }
+        } catch(Exception e) {
+            Log.e(TAG, e.getLocalizedMessage(), e);
+            message = "A problem occurred while posting to Twitter. Please verify your account is connected at greenhouse.springsource.org.";
+        }
+        postTweetDone(message);
+	}
+	
+	@UiThread
+	void postTweetDone(String result) {
+        dismissProgressDialog();
+        showResult(result);
+	}
+	    
 	
 	//***************************************
     // Activity methods
     //***************************************
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.post_tweet);
-		
-		textViewCount = (TextView) this.findViewById(R.id.post_tweet_count);
-		textWatcher = new TextWatcher() {
-	        public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-
-	        public void onTextChanged(CharSequence s, int start, int before, int count) {
-	           textViewCount.setText(String.valueOf(MAX_TWEET_LENGTH - s.length()));
-	        }
-
-	        public void afterTextChanged(Editable s) {}
-		};
-		
-		final EditText editText = (EditText) findViewById(R.id.post_tweet_text);
-		editText.addTextChangedListener(textWatcher);
-		
-		final Button button = (Button) findViewById(R.id.post_tweet_button);
-		button.setOnClickListener(new View.OnClickListener() {
-			public void onClick(View v) {
-            	// hide the soft keypad
-            	InputMethodManager inputMethodManager = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
-            	EditText editText = (EditText) findViewById(R.id.post_tweet_text);
-            	inputMethodManager.hideSoftInputFromWindow(editText.getWindowToken(), 0);
-            	new PostTweetTask().execute();
-            }
-		});
-	}
 	
 	@Override
 	public void onStart() {
 		super.onStart();
-		event = getApplicationContext().getSelectedEvent();
-		session = getApplicationContext().getSelectedSession();
+		event = application.getSelectedEvent();
+		session = application.getSelectedSession();
 		
 		if (event == null) {
 			return;
 		}
 		
-		final EditText editText = (EditText) findViewById(R.id.post_tweet_text);
 		String tweetText = null;
 		String hashtag = session == null ? event.getHashtag() : event.getHashtag() + " " + session.getHashtag();
 		
-		if (getIntent().hasExtra("reply")) {
-			tweetText = new StringBuilder().append("@").append(getIntent().getStringExtra("reply")).append(" ").append(hashtag).toString();
-		} else if (getIntent().hasExtra("quote")) {
-			tweetText = getIntent().getStringExtra("quote");
+		if (replyExtra !=null) {
+			tweetText = new StringBuilder().append("@").append(replyExtra).append(" ").append(hashtag).toString();
+		} else if (quoteExtra != null) {
+			tweetText = quoteExtra;
 		} else {
 			tweetText = hashtag;
 		}
@@ -119,61 +156,16 @@ public class PostTweetActivity extends AbstractGreenhouseActivity {
     // Private methods
     //***************************************
 	private void showResult(String result) {
-		AlertDialog.Builder builder = new AlertDialog.Builder(this);
-		builder.setMessage(result);
-		builder.setCancelable(false);
-		builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
-			public void onClick(DialogInterface dialog, int id) {
-		     	dialog.cancel();
-			}
-		});
-		AlertDialog alert = builder.create();
-		alert.show();
+		new AlertDialog.Builder(this) //
+		    .setMessage(result) //
+		    .setCancelable(false) //
+		    .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+    			public void onClick(DialogInterface dialog, int id) {
+    		     	dialog.cancel();
+    			}
+		    }) //
+		    .create() //
+		    .show();
 	}
-	
-	
-	//***************************************
-    // Private classes
-    //***************************************
-	private class PostTweetTask extends AsyncTask<Void, Void, String> 
-	{	
-		private String status;
-		
-		@Override
-		protected void onPreExecute() {
-			showProgressDialog("Posting Tweet...");
-			EditText editText = (EditText) findViewById(R.id.post_tweet_text);
-			status = editText.getText().toString();
-		}
-		
-		@Override
-		protected String doInBackground(Void... params) {
-			try {
-				if (session != null) {
-					getApplicationContext().getGreenhouseApi().tweetOperations().postTweetForEventSession(event.getId(), session.getId(), status);
-					return "Thank you for tweeting about this session!";
-				} else {
-					getApplicationContext().getGreenhouseApi().tweetOperations().postTweetForEvent(event.getId(), status);
-					return "Thank you for tweeting about this event!";
-				}
-			} catch(HttpClientErrorException e) {
-				if (e.getStatusCode() == HttpStatus.PRECONDITION_FAILED) {
-					return "Your account is not connected to Twitter. Please sign in to greenhouse.springsource.org to connect.";
-				} else {
-					Log.e(TAG, e.getLocalizedMessage(), e);
-					return "A problem occurred while posting to Twitter. Please verify your account is connected at greenhouse.springsource.org.";
-				}
-			} catch(Exception e) {
-				Log.e(TAG, e.getLocalizedMessage(), e);
-				return "A problem occurred while posting to Twitter. Please verify your account is connected at greenhouse.springsource.org.";
-			}
-		}
-		
-		@Override
-		protected void onPostExecute(String result) {
-			dismissProgressDialog();
-			showResult(result);
-		}
-	}
-	
+
 }
