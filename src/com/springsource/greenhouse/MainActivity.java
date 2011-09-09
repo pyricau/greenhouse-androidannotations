@@ -21,9 +21,13 @@ import org.springframework.social.greenhouse.api.Greenhouse;
 import android.content.Intent;
 import android.os.Bundle;
 
+import com.googlecode.androidannotations.annotations.App;
+import com.googlecode.androidannotations.annotations.EActivity;
+
 /**
  * @author Roy Clarkson
  */
+@EActivity
 public class MainActivity extends AbstractGreenhouseActivity {
 	
 	@SuppressWarnings("unused")
@@ -31,6 +35,8 @@ public class MainActivity extends AbstractGreenhouseActivity {
 	
 	private ConnectionRepository connectionRepository;
 	
+	@App
+	MainApplication application;
 	
 	//***************************************
     // Activity methods
@@ -39,13 +45,13 @@ public class MainActivity extends AbstractGreenhouseActivity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		
-		connectionRepository = getApplicationContext().getConnectionRepository();
+		connectionRepository = application.getConnectionRepository();
 		
 		Intent intent;
 		if (isConnected()) {
-			intent = new Intent(this, MainTabWidget.class);
+			intent = new Intent(this, MainTabWidget_.class);
 		} else {
-			intent = new Intent(this, SignInActivity.class);
+			intent = new Intent(this, SignInActivity_.class);
 		}
 		
 		startActivity(intent);

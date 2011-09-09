@@ -6,3 +6,4 @@ target
 .classpath
 .settings
 .factorypath
+.apt_generated

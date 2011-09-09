@@ -15,7 +15,7 @@
     	android:theme="@android:style/Theme.Light">
     	
 		<activity 
-			android:name="com.springsource.greenhouse.MainActivity"
+			android:name="com.springsource.greenhouse.MainActivity_"
 			android:theme="@android:style/Theme.Light.NoTitleBar">
 			
 			<intent-filter>
@@ -26,17 +26,17 @@
 		</activity>
 
 		<activity 
-			android:name="com.springsource.greenhouse.SignInActivity"  
+			android:name="com.springsource.greenhouse.SignInActivity_"  
 			android:theme="@android:style/Theme.Light.NoTitleBar" />
 		
 		<activity
-			android:name="com.springsource.greenhouse.WebOAuthActivity"
+			android:name="com.springsource.greenhouse.WebOAuthActivity_"
 			android:label="@string/app_name"
 			android:noHistory="true"
         	android:excludeFromRecents="true" />
 
 		<activity 
-			android:name="com.springsource.greenhouse.MainTabWidget" 
+			android:name="com.springsource.greenhouse.MainTabWidget_" 
 			android:label="@string/app_name" 
 			android:theme="@android:style/Theme.Light.NoTitleBar" />
 			

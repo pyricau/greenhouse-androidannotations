@@ -29,12 +29,9 @@ import org.springframework.web.client.HttpServerErrorException;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Window;
@@ -42,16 +39,19 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import com.googlecode.androidannotations.annotations.Background;
+import com.googlecode.androidannotations.annotations.EActivity;
+import com.googlecode.androidannotations.annotations.UiThread;
+import com.googlecode.androidannotations.annotations.res.StringRes;
+import com.googlecode.androidannotations.annotations.sharedpreferences.Pref;
+
 /**
  * @author Roy Clarkson
  */
+@EActivity
 public class WebOAuthActivity extends AbstractGreenhouseActivity {
 	
 	protected static final String TAG = WebOAuthActivity.class.getSimpleName();
-	
-	private static final String REQUEST_TOKEN_KEY = "request_token";
-	
-	private static final String REQUEST_TOKEN_SECRET_KEY = "request_token_secret";
 	
 	private WebView webView;
 	
@@ -59,7 +59,11 @@ public class WebOAuthActivity extends AbstractGreenhouseActivity {
 	
 	private GreenhouseConnectionFactory connectionFactory;
 	
-	private SharedPreferences greenhousePreferences;
+	@StringRes
+	String oauth_callback_url;
+	
+	@Pref
+	GreenhouseConnectPreferences_ prefs;
 
 
 	//***************************************
@@ -97,23 +101,18 @@ public class WebOAuthActivity extends AbstractGreenhouseActivity {
 		
 		connectionRepository = getApplicationContext().getConnectionRepository();
 		connectionFactory = getApplicationContext().getConnectionFactory();
-		greenhousePreferences = getSharedPreferences("GreenhouseConnectPreferences", Context.MODE_PRIVATE);
 	}
 	
 	@Override
 	public void onStart() {
 		super.onStart();
-		new GreenhousePreConnectTask().execute();
+		greenhousePreConnect();
 	}
 		
 	
 	//***************************************
     // Private methods
     //***************************************
-	private String getOAuthCallbackUrl() {
-		return getString(R.string.oauth_callback_url);
-	}
-	
 	private void displayGreenhouseAuthorization(OAuthToken requestToken) {
 		
 		if (requestToken == null) {
@@ -138,20 +137,21 @@ public class WebOAuthActivity extends AbstractGreenhouseActivity {
 	}
 	
 	private void saveRequestToken(OAuthToken requestToken) {
-		SharedPreferences.Editor editor = greenhousePreferences.edit();
-		editor.putString(REQUEST_TOKEN_KEY, requestToken.getValue());
-		editor.putString(REQUEST_TOKEN_SECRET_KEY, requestToken.getSecret());
-		editor.commit();
+		
+		prefs.edit() //
+				.request_token().put(requestToken.getValue()) //
+				.request_token_secret().put(requestToken.getSecret()) //
+				.apply();
 	}
 	
-	private OAuthToken retrieveRequestToken() {		
-		String token = greenhousePreferences.getString(REQUEST_TOKEN_KEY, null);
-		String secret = greenhousePreferences.getString(REQUEST_TOKEN_SECRET_KEY, null);
+	private OAuthToken retrieveRequestToken() {
+		String token = prefs.request_token().get(null);
+		String secret = prefs.request_token_secret().get(null);
 		return new OAuthToken(token, secret);
 	}
 	
 	private void deleteRequestToken() {
-		greenhousePreferences.edit().clear().commit();
+		prefs.clear();
 	}
 	
 	private void displayAppAuthorizationError(String message) {
@@ -168,97 +168,84 @@ public class WebOAuthActivity extends AbstractGreenhouseActivity {
 	}
 	
 	
-	//***************************************
-    // Private classes
-    //***************************************
-	private class GreenhousePreConnectTask extends AsyncTask<Void, Void, OAuthToken> {
-		
-		private Exception exception;
-		
-		@Override
-		protected void onPreExecute() {
-			showProgressDialog("Initializing OAuth Connection...");
+	void greenhousePreConnect() {
+		showProgressDialog("Initializing OAuth Connection...");
+		greenhouseFetchRequestToken();
+	}
+	
+	@Background
+	void greenhouseFetchRequestToken() {
+		try {
+			// Fetch a one time use Request Token from Greenhouse
+			OAuthToken token = connectionFactory.getOAuthOperations().fetchRequestToken(oauth_callback_url, null);
+			greenhousePreConnectSuccess(token);
+		} catch(Exception e) {
+			greenhousePreConnectFailed(e);
 		}
-		
-		@Override
-		protected OAuthToken doInBackground(Void... params) {
-			try {
-				// Fetch a one time use Request Token from Greenhouse
-				return connectionFactory.getOAuthOperations().fetchRequestToken(getOAuthCallbackUrl(), null);
-			} catch(Exception e) {
-				this.exception = e;
-				return null;
-			}
-		}
-		
-		@Override
-		protected void onPostExecute(OAuthToken requestToken) {
-			dismissProgressDialog();
-			
-			if (exception != null && exception instanceof HttpClientErrorException) {
-				if (((HttpClientErrorException)exception).getStatusCode() == HttpStatus.UNAUTHORIZED) {
-					displayAppAuthorizationError("This application is not authorized to connect to Greenhouse");
-				}
-			} else {
-				displayGreenhouseAuthorization(requestToken);
+	}
+	
+	@UiThread
+	void greenhousePreConnectSuccess(OAuthToken requestToken) {
+		dismissProgressDialog();
+		displayGreenhouseAuthorization(requestToken);
+	}
+	
+	@UiThread
+	void greenhousePreConnectFailed(Exception exception) {
+		dismissProgressDialog();
+		if (exception instanceof HttpClientErrorException) {
+			if (((HttpClientErrorException) exception).getStatusCode() == HttpStatus.UNAUTHORIZED) {
+				displayAppAuthorizationError("This application is not authorized to connect to Greenhouse");
 			}
 		}
 	}
 	
-	private class GreenhousePostConnectTask extends AsyncTask<String, Void, Void> {
-		
-		private Exception exception;
-		
-		@Override
-		protected void onPreExecute() {
-			showProgressDialog("Finalizing OAuth Connection...");
-		}
-		
-		@Override
-		protected Void doInBackground(String... params) {
-			if (params.length <= 0) {
-				return null;
-			}
-			
-			final String verifier = params[0];
-			OAuthToken requestToken = retrieveRequestToken();
+	void greenhousePostConnect(String verifier) {
+		showProgressDialog("Finalizing OAuth Connection...");
+		greenhouseRemotePostConnect(verifier);
+	}
+	
+	@Background
+	void greenhouseRemotePostConnect(String verifier) {
+		OAuthToken requestToken = retrieveRequestToken();
 
-			// Authorize the Request Token
-			AuthorizedRequestToken authorizedRequestToken = new AuthorizedRequestToken(requestToken, verifier);
-			
-			OAuthToken accessToken = null;
-			try {
-				// Exchange the Authorized Request Token for the Access Token
-				accessToken = connectionFactory.getOAuthOperations().exchangeForAccessToken(authorizedRequestToken, null);
-			} catch(Exception e) {
-				exception = e;
-				return null;
-			}
-			
-			deleteRequestToken();
-			
-			// Persist the connection and Access Token to the repository 
-			Connection<Greenhouse> connection = connectionFactory.createConnection(accessToken);
-			
-			try {
-				connectionRepository.addConnection(connection);
-			} catch (DuplicateConnectionException e) {
-				Log.i(TAG, "attempting to add duplicate connection", e);
-			}
-			
-			return null;
+		// Authorize the Request Token
+		AuthorizedRequestToken authorizedRequestToken = new AuthorizedRequestToken(requestToken, verifier);
+		
+		OAuthToken accessToken = null;
+		try {
+			// Exchange the Authorized Request Token for the Access Token
+			accessToken = connectionFactory.getOAuthOperations().exchangeForAccessToken(authorizedRequestToken, null);
+		} catch(Exception e) {
+			greenhousePostConnectFailed(e);
 		}
 		
-		@Override
-		protected void onPostExecute(Void v) {
-			dismissProgressDialog();
-			
-			if (exception != null && exception instanceof HttpServerErrorException) {
-				if (((HttpServerErrorException)exception).getStatusCode() == HttpStatus.INTERNAL_SERVER_ERROR) {
-					displayAppAuthorizationError("You are already connected with another Android device. Please remove the connection at Greenhouse and try again.");
-				}
-			} else {
-				displayGreenhouseOptions();
+		deleteRequestToken();
+		
+		// Persist the connection and Access Token to the repository 
+		Connection<Greenhouse> connection = connectionFactory.createConnection(accessToken);
+		
+		try {
+			connectionRepository.addConnection(connection);
+		} catch (DuplicateConnectionException e) {
+			Log.i(TAG, "attempting to add duplicate connection", e);
+		}
+		
+		greenhousePostConnectSuccess();
+	}
+	
+	@UiThread
+	void greenhousePostConnectSuccess() {
+		dismissProgressDialog();
+		displayGreenhouseOptions();
+	}
+	
+	@UiThread
+	void greenhousePostConnectFailed(Exception exception) {
+		dismissProgressDialog();
+		if (exception instanceof HttpClientErrorException) {
+			if (((HttpServerErrorException)exception).getStatusCode() == HttpStatus.INTERNAL_SERVER_ERROR) {
+				displayAppAuthorizationError("You are already connected with another Android device. Please remove the connection at Greenhouse and try again.");
 			}
 		}
 	}
@@ -274,7 +261,7 @@ public class WebOAuthActivity extends AbstractGreenhouseActivity {
 				
 				if (oauthVerifier != null) {
 					Log.d(TAG, "oauth_verifier: " + oauthVerifier);
-					new GreenhousePostConnectTask().execute(oauthVerifier);
+					greenhousePostConnect(oauthVerifier);
 					return true;
 				}
 			}

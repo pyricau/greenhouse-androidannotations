@@ -17,30 +17,19 @@ package com.springsource.greenhouse;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.os.Bundle;
-import android.view.View;
-import android.view.View.OnClickListener;
 
-import com.springsource.greenhouse.R;
+import com.googlecode.androidannotations.annotations.Click;
+import com.googlecode.androidannotations.annotations.EActivity;
 
 /**
  * @author Roy Clarkson
  */
+@EActivity(R.layout.signin)
 public class SignInActivity extends Activity {
 
-	//***************************************
-    // Activity methods
-    //***************************************
-	@Override
-	public void onCreate(final Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.signin);
-
-		findViewById(R.id.signin_button).setOnClickListener(new OnClickListener() {
-			public void onClick(final View view) {
-				startActivity(new Intent(SignInActivity.this, WebOAuthActivity.class));
-				finish();
-			}
-		});
+	@Click
+	void signin_button() {
+		startActivity(new Intent(this, WebOAuthActivity_.class));
+		finish();
 	}
 }
